@@ -1,34 +1,21 @@
 package remindApp;
 
-public class Phone extends Item {
+public class Phone extends Item implements Comparable<Phone>{
     String name;
     String number;
 
-    public Phone(String name) {
-        this.name = name;
+    public Phone(String content){
+        String[] contact = content.split(" ");
+        name = contact[0];
+        number = contact[1];
     }
-
-    public void addPhoneNumber(String number) {
-        this.number = number;
-    }
-
-    // Function checking string pattern for variable Name
-    public boolean hasString(String stringValue) {
-        int valueLength = stringValue.length();
-        boolean hasString = false;
-        if (name.length() >= stringValue.length()) {
-            if (name.substring(0, valueLength).equals(stringValue)) hasString = true;
-        }
-
-        return hasString;
-    }
-
-    public String getName() {
-        return name;
+    @Override
+    public void print() {
+        System.out.println("phone: "+ name +" "+ number);
     }
 
     @Override
-    public void print() {
-        System.out.println("phone: " + name + " " + number);
+    public int compareTo(Phone o) {
+        return this.name.compareTo(o.name);
     }
 }

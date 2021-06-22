@@ -2,55 +2,62 @@ package remindApp;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.StringTokenizer;
 
-public class Todo extends Item {
+public class Todo extends Item implements Comparable<Todo>{
     Date date;
-    ArrayList<String> message = new ArrayList<>();
+    String message;
     SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 
-    public Todo(String stringDate) {
+    public Todo(String content){
+        StringTokenizer info = new StringTokenizer(content);
         try {
-            this.date = formatter.parse(stringDate);
+            date = formatter.parse(info.nextToken());
         } catch (ParseException e) {
             e.printStackTrace();
         }
+        message = info.nextToken("");
     }
 
-    public void collectWord(String word) {
-        message.add(word);
-    }
-
-    // todo fix this method, return all todo objects
-    // Function checking matched date
-    public boolean hasPreviousCurrentFollowingDate(Date searchDate) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(searchDate);
-        calendar.add(Calendar.DATE, 1);
-        Date followingDate = calendar.getTime();
-        calendar.add(Calendar.DATE, -2);
-        Date previousDate = calendar.getTime();
-        boolean isMatched = false;
-        if (date.equals(searchDate) || date.equals(previousDate) || date.equals(followingDate)) {
-            isMatched = true;
+    public boolean hasPreviousCurrentFollowingDate(String theDate){
+        Date searchDate = null;
+        try {
+            searchDate = formatter.parse(theDate);
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
-        return isMatched;
-    }
+        boolean isMatched = false;
 
-    public Date getDate() {
-        return date;
+        if (searchDate != null){
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(searchDate);
+
+            calendar.add(Calendar.DATE, 1);
+            Date followingDate = calendar.getTime();
+
+            calendar.add(Calendar.DATE, -2);
+            Date previousDate = calendar.getTime();
+
+
+            if (date.equals(searchDate) || date.equals(previousDate) || date.equals(followingDate)) {
+                isMatched = true;
+            }
+        }
+
+        return isMatched;
     }
 
     @Override
     public void print() {
         String formattedDate = formatter.format(date);
-        System.out.print("todo: " + formattedDate);
-        // print the list of words to get the full sentence
-        for (String word : message) {
-            System.out.print(" " + word);
-        }
-        System.out.println();
+        System.out.println("todo: " + formattedDate+ " "+ message);
     }
+
+    @Override
+    public int compareTo(Todo o) {
+        return this.date.compareTo(o.date);
+    }
+
 }
