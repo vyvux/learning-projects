@@ -1,9 +1,6 @@
 package youtubetrender;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
+import javax.json.*;
 import javax.json.stream.JsonParsingException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -24,36 +21,30 @@ public class YouTubeDataParser {
             //read the values of the item field for multiple YouTubeVideo objects
             JsonArray items = jobj.getJsonArray("items");
             // loop for running all JSON objects in JSON array
-            System.out.println("item size = " + items.size());
             for (int i = 0; i < items.size(); i++) {
-                YouTubeVideo youtubeObject = new YouTubeVideo();
-                /** parse to a single YouTubeVideo Object
-                 */
+                /** parse to a single YouTubeVideo Object */
                 // get JSON object at the index i
                 JsonObject itemObj = items.getJsonObject(i);
                 // create obj for data in 'snippet' (item -> snippet)
                 JsonObject snippet = itemObj.getJsonObject("snippet");
                 // parse to variables of a YouTubeVideo object
-                youtubeObject.setDate(snippet.getString("publishedAt"));
-                youtubeObject.setChannelId(snippet.getString("channelId"));
-                youtubeObject.setTitle(snippet.getString("title"));
-                youtubeObject.setDescription(snippet.getString("description"));
-                youtubeObject.setChannelTitle(snippet.getString("channelTitle"));
-                youtubeObject.setCombineTitleDescription(); //join title and description for indexing performance
+                String date = snippet.getString("publishedAt");
+                String channelId = snippet.getString("channelId");
+                String title = snippet.getString("title");
+                String description = snippet.getString("description");
+                String channelTitle = snippet.getString("channelTitle");
 
                 // create obj for data in 'statistics' (item -> statistic)
                 JsonObject stat = itemObj.getJsonObject("statistics");
                 // parse to viewCount variable of YouTubeVideo object
-                youtubeObject.setViewCount(Integer.parseInt(stat.getString("viewCount")));
-                // add index of objects
-                youtubeObject.setIndex(i+1);
-                // count description length
-                youtubeObject.setDescriptionWordCount();
-                //concat title and description for later indexing
-                youtubeObject.setCombineTitleDescription();
-                // add the parsed YouTubeVideo object to list
+                int viewCount = Integer.parseInt(stat.getString("viewCount"));
+
+                // create and add the parsed YouTubeVideo object to list
+                YouTubeVideo youtubeObject = new YouTubeVideo(channelTitle, date, title, description, channelId,viewCount);
                 list.add(youtubeObject);
             } // end for loop
+
+
         } catch (FileNotFoundException e) {
             throw new YouTubeDataParserException("Parsing Error >>> File Not Found");
         } catch (JsonParsingException e){
@@ -65,42 +56,9 @@ public class YouTubeDataParser {
 
     public String toString(){ return list.toString();}
 
-    public static class YouTubeDataParserException extends Exception{
-        public YouTubeDataParserException (String message){
-            super(message);
-        }
-    }
-
     /**Method to clear data for parsing new JSON file*/
     public void emptyData(){ list.clear(); }
 
-    /**Method sort videos based on PUBLISHED DATE
-     * */
-    public List<YouTubeVideo> sortByDate() {
-        Collections.sort(list, new YouTubeVideoDateComparator());
-        return list;
-    }
-
-    /**Method sort videos based on CHANNEL TITLE
-     * */
-    public List<YouTubeVideo> sortByChannelTitle() {
-        Collections.sort(list, new YouTubeVideoChannelTitleComparator());
-        return list;
-    }
-
-    /**Method sort videos based on VIEW COUNTS
-     * */
-    public List<YouTubeVideo> sortByViewCount() {
-        Collections.sort(list, new YouTubeVideoViewCountComparator());
-        return list;
-    }
-
-    /**Method sort videos based on DESCRIPTION LENGTH
-     * */
-    public List<YouTubeVideo> sortByDescriptionLength() {
-        Collections.sort(list, new YouTubeVideoDescriptionLengthComparator());
-        return list;
-    }
 }// end YouTubeDataParser class
 /*******************************************************************************************************************/
 /**COMPARATOR CLASS sort videos based on PUBLISHED DATE
@@ -108,7 +66,7 @@ public class YouTubeDataParser {
 class YouTubeVideoDateComparator implements Comparator<YouTubeVideo> {
     @Override
     public int compare(YouTubeVideo obj1, YouTubeVideo obj2) {
-        return obj1.getDate().compareTo(obj2.getDate());
+        return obj2.getDate().compareTo(obj1.getDate());
     }
 
 }
@@ -118,7 +76,7 @@ class YouTubeVideoDateComparator implements Comparator<YouTubeVideo> {
 class YouTubeVideoChannelTitleComparator implements Comparator<YouTubeVideo>{
     @Override
     public int compare(YouTubeVideo obj1, YouTubeVideo obj2) {
-        return obj1.getChannelTitle().toLowerCase().compareTo(obj2.getChannelTitle().toLowerCase());
+        return obj2.getChannelTitle().toLowerCase().compareTo(obj1.getChannelTitle().toLowerCase());
     }
 }
 /**COMPARATOR CLASS sort videos based on NUMBER OF VIEWS (highest view number showed first)
@@ -126,7 +84,7 @@ class YouTubeVideoChannelTitleComparator implements Comparator<YouTubeVideo>{
 class YouTubeVideoViewCountComparator implements Comparator<YouTubeVideo>{
     @Override
     public int compare(YouTubeVideo obj1, YouTubeVideo obj2) {
-        return obj2.getViewCount()-(obj1.getViewCount());
+        return Integer.compare(obj2.getViewCount(), obj1.getViewCount());
     }
 }
 
@@ -135,6 +93,6 @@ class YouTubeVideoViewCountComparator implements Comparator<YouTubeVideo>{
 class YouTubeVideoDescriptionLengthComparator implements Comparator<YouTubeVideo>{
     @Override
     public int compare(YouTubeVideo obj1, YouTubeVideo obj2) {
-        return obj1.getDescriptionWordCount()-(obj2.getDescriptionWordCount());
+        return Integer.compare(obj2.getDescription().length(), obj1.getDescription().length());
     }
 }

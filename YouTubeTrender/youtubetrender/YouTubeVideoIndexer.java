@@ -1,107 +1,103 @@
 package youtubetrender;
 
-import javax.swing.plaf.synth.SynthOptionPaneUI;
 import java.util.*;
 
+/**
+ * The class to perform analysing function for a list of video items
+ */
 public class YouTubeVideoIndexer {
-    /**Map to store all YouTubeVideo objects<Set></> associated with each word<String></>*/
-    Map<String, Set<YouTubeVideo>> masterList = new LinkedHashMap<>();
-    List<Map.Entry<String, Integer>> sortedMasterList = new ArrayList<>();
-    /**Map to store all words<String></> and their associated counting times<Long></>*/
-    Map<String, Long> wordsOfAllVideos = new HashMap<>();
-    List<Map.Entry<String, Long>> sortedList = new ArrayList<>();
+    // The map to store each distinctive word and its YouTubeWordItem object
+    private Map<String, YouTubeWordItem> map = new HashMap<>();
+    // The list of videos to be indexed
+    private List<YouTubeVideo> list;
 
+    public YouTubeVideoIndexer(List<YouTubeVideo> list) {
+        this.list = list;
+        index();
+    }
 
-   public void sortWordsByCount(){
-       List<Map.Entry<String, Long>> listOfEntries = new ArrayList<Map.Entry<String, Long>>(wordsOfAllVideos.entrySet());
-       Collections.sort(listOfEntries, Comparator.comparing(Map.Entry<String, Long>::getValue).reversed());
-       for (Map.Entry<String, Long> word : listOfEntries){
-           sortedList.add(word);
-       }
-   }
-
-   public void sortMasterListByNumberOfVideos(){
-       Map<String,Integer> map = new HashMap<>();
-       for (Map.Entry<String, Set<YouTubeVideo>> each : masterList.entrySet()){
-           map.put(each.getKey(), masterList.get(each.getKey()).size());
-       }
-       List<Map.Entry<String, Integer>> sortedListByNumberOfVideos = new ArrayList<Map.Entry<String, Integer>>(map.entrySet());
-       Collections.sort(sortedListByNumberOfVideos, Comparator.comparing(Map.Entry<String, Integer>::getValue).reversed());
-       for (Map.Entry<String, Integer> item : sortedListByNumberOfVideos){
-           sortedMasterList.add(item);
-       }
-   }
-
-
-    public void index(YouTubeDataParser parser){
-        Long current, add;
-        // loop running through all YouTubeVideo objects of the parser
-        for (YouTubeVideo item :  parser.list) {
-            item.countingWordMethod(item.getCombineTitleDescription());
-            Iterator<Map.Entry<String, Long>> iterator = item.getAllWordMap().entrySet().iterator();
-            while (iterator.hasNext()){
-                Map.Entry<String, Long> each = iterator.next();
-                add = each.getValue();//additional times of a word
-                //if the word exists in the Map
-                if (wordsOfAllVideos.containsKey(each.getKey())){
-                    current = wordsOfAllVideos.get(each.getKey());// get the current times of word
-                    wordsOfAllVideos.put(each.getKey(), current+add); //assign new value of times
+    /**
+     * Method to index all words of the video titles and descriptions,
+     * create new YouTubeWordItem object whenever a new word is reached,
+     * increment the word count,
+     * and add associate the current YouTubeVideo object with the word
+     */
+    public void index(){
+        for (YouTubeVideo item : list) {
+            String[] strings = (item.getTitle() + " " + item.getDescription()).trim().split("\\s+");
+            for (String word : strings) {
+                if (map.containsKey(word)) {
+                    map.get(word).incrementCount();
                 } else {
-                    wordsOfAllVideos.put(each.getKey(), add);
+                    map.put(word, new YouTubeWordItem(word));
                 }
-                //
-                if (masterList.containsKey(each.getKey())) {
-                    Set<YouTubeVideo> videos = masterList.get(each.getKey());
-                    videos.add(item);
-                    masterList.put(each.getKey(), videos);
-                } else {
-                    Set<YouTubeVideo> newVideos = new HashSet<>();
-                    newVideos.add(item);
-                    masterList.put(each.getKey(), newVideos);
-                }
-            }// end while
+                map.get(word).addVideo(item);
+            }
         }
-    } // end index method
+    }
 
-    public void findWord(String str){
-        if (wordsOfAllVideos.containsKey(str)){
-            System.out.println("The word \"" +str + "\" exists in the list of YouTube Videos");
+    /**
+     * @return List of words sorted by occurrence
+     */
+    public List<YouTubeWordItem> getSortedWordList(){
+        List<YouTubeWordItem> sortedList = new ArrayList<>(map.values());
+        Collections.sort(sortedList);
+        return sortedList;
+    }
+
+    /**
+     * Checks the existence of a word And print out the representation of the word item if found
+     * @param word The search term
+     */
+    public void findWord(String word){
+        if (map.containsKey(word)){
+            System.out.println(map.get(word));
         } else {
-            System.err.println("The word \"" +str + "\"  does not exist in any YouTube Video");
+            System.out.println("The word \'"+word+"\' doesn't exist");
         }
     }
 
-    public void findCount(String str){
-        if (wordsOfAllVideos.containsKey(str)){
-            System.out.println("The word \""+str+"\" appears "+wordsOfAllVideos.get(str)+" times");
-        } else {
-            System.err.println("The word \"" +str + "\"  does not exist in any YouTube Video");
+    public void findMostUsedWord(){
+        System.out.println("The most used word is:");
+        System.out.println(getSortedWordList().get(0));
+        // check if following items also has the same number of occurrence
+        boolean continueChecking = true;
+        for (int i = 1; i < getSortedWordList().size() && continueChecking; i++){
+            if (getSortedWordList().get(i).getCount() == getSortedWordList().get(0).getCount()){
+                System.out.println(getSortedWordList().get(i));
+            } else continueChecking = false;
         }
     }
 
-    public void findVideosAssociatedWithWord(String str){
-        if (wordsOfAllVideos.containsKey(str)){
-            System.out.println("The word \""+str+"\" appears in "+masterList.get(str).size()+" videos");
-            System.out.println(masterList.get(str));
-        } else {
-            System.err.println("The word \"" +str + "\"  does not exist in any YouTube Video");
-        }
 
-    }
-
-    public String findMostTrendingWordByCount(){
-       return sortedList.get(0).getKey();
-    }
-
-    public void findMostTrendingWordByAssociatedVideos(){
-        System.out.println("The word \""+sortedMasterList.get(0).getKey()+"\" has the highest video appearance with "+sortedMasterList.get(0).getValue()+" videos");
-    }
-
-
-    public void printSortedList(){
-        for (Map.Entry<String, Long> word : sortedList){
-            System.out.println(word);
+    public void findWordListSortedByCount(){
+        System.out.println("List of words sorted by occurrence:");
+        for (YouTubeWordItem item : getSortedWordList()){
+            System.out.println(item);
         }
     }
 
+    public void findMostPopularWord(){
+        List<YouTubeWordItem> sortedList = new ArrayList<>(map.values());
+        sortedList.sort(new WordItemMostPopularComparator());
+        System.out.println("The word that appears in most of videos:");
+        System.out.println(sortedList.get(0));
+        // check if following items also has the same number of videos
+        boolean continueChecking = true;
+        for (int i = 1; i < sortedList.size() && continueChecking; i++){
+            if (sortedList.get(i).getVideos().size() == sortedList.get(0).getVideos().size()){
+                System.out.println(sortedList.get(i));
+            } else continueChecking = false;
+        }
+    }
+
+    public void findPopularWords(){
+        System.out.println("List of popular words:");
+        List<YouTubeWordItem> sortedList = new ArrayList<>(map.values());
+        Collections.sort(sortedList, new WordItemMostPopularComparator());
+        for (YouTubeWordItem item : sortedList){
+            System.out.println(item);
+        }
+
+    }
 }
