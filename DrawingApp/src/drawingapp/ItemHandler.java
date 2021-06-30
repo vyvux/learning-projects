@@ -1,19 +1,26 @@
 package drawingapp;
 
-import javax.swing.*;
-import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
+/**
+ * The class listens to changes of figure choices in control panel
+ */
 public class ItemHandler implements ActionListener, ItemListener {
-    private final DrawingFrame frame;
-    private final DrawingPanel panel;
+    private final ControlPanel controlPanel;
+    private final DrawingPanel drawingPanel;
 
-    public ItemHandler(DrawingFrame drawFrame, DrawingPanel drawPanel){
-        frame = drawFrame;
-        panel = drawPanel;
+    /**
+     * Constructor: Registers control panel and drawing panel
+     *
+     * @param controlPanel the control panel
+     * @param drawPanel    the drawing panel
+     */
+    public ItemHandler(ControlPanel controlPanel, DrawingPanel drawPanel) {
+        this.controlPanel = controlPanel;
+        drawingPanel = drawPanel;
     }
 
     /**
@@ -23,30 +30,23 @@ public class ItemHandler implements ActionListener, ItemListener {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
+        Object source = e.getSource();
 
-        // Red color checkbox clicked -> change color used in DrawingPanel to Red
-        if (frame.redCheckbox.isSelected()){
-            System.out.println("Color changed to Red");
-            panel.setShapeColor(Color.red);
+        // Change Current Action label accordingly to selected Figure Type
+        if (source == controlPanel.getFigureMenus()[0]) {
+            System.out.println("Choice changed to " + controlPanel.getFigureMenus()[0].getSelectedItem());
+            controlPanel.setCurrentAction();
+            // terminate drawing temporary line or Move action
+            drawingPanel.terminateDrawingLineAndMoveAction();
+
         }
 
-        // Green color checkbox clicked -> change color used in DrawingPanel to Green
-        if (frame.greenCheckbox.isSelected()){
-            System.out.println("Color changed to Green");
-            panel.setShapeColor(Color.green);
+        // Notify Figure Action changes
+        if (source == controlPanel.getFigureMenus()[1]) {
+            System.out.println("Action changed to " + controlPanel.getFigureMenus()[1].getSelectedItem());
+            drawingPanel.terminateDrawingLineAndMoveAction(); // terminate the ongoing Move or Draw line
         }
 
-        // Blue color checkbox clicked -> change color used in DrawingPanel to Blue
-        if (frame.blueCheckbox.isSelected()){
-            System.out.println("Color changed to Blue");
-            panel.setShapeColor(Color.blue);
-        }
-
-        // Black color checkbox clicked -> change color used in DrawingPanel to Black
-        if (frame.blackCheckbox.isSelected()){
-            System.out.println("Color changed to Black");
-            panel.setShapeColor(Color.black);
-        }
     }
 
     /**
@@ -58,30 +58,10 @@ public class ItemHandler implements ActionListener, ItemListener {
      */
     @Override
     public void itemStateChanged(ItemEvent e) {
-        Object source = e.getSource();
-
-        // Change Current Action label accordingly to selected figure type in JComboBox
-        if (source == frame.figureType) {
-            if(e.getStateChange() == ItemEvent.SELECTED){
-                System.out.println("Choice changed to "+ frame.getSelectedFigureType());
-                frame.setCurrentAction();
-
-                // terminate drawing temporary lines if another figure type selected
-                if (!frame.getSelectedFigureType().equals("Line") && panel.drawLine){
-                    panel.terminateDrawingLineAndMove();
-                }
-            }
-
-        }
-
-        // Change current action label accordingly to selected figure type in JComboBox
-        if (source == frame.figureAction){
-            if(e.getStateChange() == ItemEvent.SELECTED){
-                System.out.println("Action changed to "+ frame.getSelectedFigureAction());
-
-                if (!frame.getSelectedFigureType().equals("Move") && (panel.moveItem || panel.drawLine)){
-                    panel.terminateDrawingLineAndMove();
-                }
+        // Change the drawing panel color based on the selected color checkboxes
+        for (int i = 0; i < controlPanel.getColorCheckboxes().length; i++) {
+            if (controlPanel.getColorCheckboxes()[i].isSelected()) {
+                drawingPanel.setColor(controlPanel.getColors()[i]);
             }
         }
 

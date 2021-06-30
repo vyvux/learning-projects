@@ -3,78 +3,42 @@ package drawingapp;
 import java.awt.*;
 
 /**
- * The class to store information of a Line
+ * The class representing a Line
  */
 public class Line extends Figure {
-    int startX, oriStartX;
-    int startY, oriStartY;
-    int endX, oriEndX;
-    int endY, oriEndY;
+    private Point start, end;
 
     /**
-     * The constructor to create Line object
+     * Constructor: Sets up the Line object, resets location, size, starting point and ending point
      *
-     * @param position Point object of the line starting point
-     * @param pickedColor The line color
-     * @param endPosition Point object of the line ending point
+     * @param position The starting point of the Line based on the drawing panel location
+     * @param pickedColor The figure color
+     * @param endPoint The end point of the Line based on the drawing panel location
      */
-    public Line(Point position, Color pickedColor, Point endPosition) {
+    public Line(Point position, Color pickedColor, Point endPoint) {
         super(position, pickedColor);
-        startX = oriStartX = position.x;
-        startY = oriStartY = position.y;
-        endX = oriEndX = endPosition.x;
-        endY = oriEndY = endPosition.y;
+        Point topLeft = new Point(Math.min(position.x, endPoint.x), Math.min(position.y, endPoint.y));
+        setLocation(topLeft);
+
+        // calculate the size of bounding rectangle
+        int width = Math.max(Math.abs(position.x - endPoint.x), 1); // if the line is parallel with y axis, bounding width is 1 pixel
+        int height = Math.max(Math.abs(position.y - endPoint.y), 1); // if the line is parallel with x axis, bounding height is 1 pixel
+        setSize(width, height);
+
+        // determine starting and ending points based on top left point of bounding rect at (0,0)
+        start = new Point(position.x - topLeft.x, position.y - topLeft.y);
+        end = new Point(endPoint.x - topLeft.x, endPoint.y - topLeft.y);
     }
 
     /**
-     * The method to draw line on a graphic object
+     * Draws line with its upper-left corner at (0,0)
      *
      * @param page the graphic object to draw line on
      */
     @Override
-    public void draw(Graphics page){
-        page.setColor(color);
-        page.drawLine(startX,startY,endX,endY);
+    public void paintComponent(Graphics page){
+        super.paintComponent(page);
+        page.drawLine(start.x, start.y, end.x, end.y);
     }
 
-    @Override
-    public void boundingHighlighter(Graphics page){
-        page.setColor(Color.orange);
-        page.drawRect(Math.min(startX,endX), Math.min(startY,endY), Math.abs(endX - startX), Math.abs(endY - startY));
-    }
-
-    @Override
-    public void moveShape(int varianceX, int varianceY){
-        startX = oriStartX+ varianceX;
-        startY = oriStartY+ varianceY;
-        endX = oriEndX+ varianceX;
-        endY = oriEndY + varianceY;
-    }
-
-    @Override
-    public void startMoving(){
-        oriStartX = startX;
-        oriStartY = startY;
-        oriEndX = endX;
-        oriEndY = endY;
-    }
-
-    @Override
-    public void terminateMove(){
-        startX = oriStartX;
-        startY = oriStartY;
-        endX = oriEndX;
-        endY = oriEndY;
-    }
-
-    @Override
-    public boolean containPoint(Point point){
-        int minX = Math.min(startX, endX);
-        int minY = Math.min(startY, endY);
-        int maxX = Math.max(startX, endX);
-        int maxY = Math.max(startY, endY);
-         if (point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY){
-            return true;
-        } else return false;
-    }
 }

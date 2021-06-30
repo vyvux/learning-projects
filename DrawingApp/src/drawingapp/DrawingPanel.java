@@ -4,153 +4,305 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
 
+/**
+ * The drawing panel to draw figures on
+ */
 public class DrawingPanel extends JPanel implements Constants {
-    final DrawingFrame frame;
-    ArrayList<Figure> shapes = new ArrayList<>(); // the storage for figure items
-    Color color;
-    boolean drawLine, moveItem, inAction = false; // control when to draw temporary lines, to draw moving item, to wait for successful action
-    Point position, previousPoint; // point of the most current mouse click
-    Figure itemInMove, hoveredItem; // temporary lines or moving items| the chosen item to be moved
-    int movingX, movingY; // index of the chosen item to be moved in the list of shapes
+    private final ControlPanel controlPanel;
+    private Color color;
+    private boolean drawLine; // control when to draw temporary lines
+    private boolean moveItem; // control when to move item
+    private boolean inAction; // control when the action is successfully performed
+    private Point position; // the most current mouse click position
+    private Point previousPoint; // the first point to draw line
+    private Point movingPoint; // the moving mouse position
+    private Figure itemInMove; // the selected figure to be moved
+    private Figure hoveredItem; // the chosen item to be moved
 
 
-    public DrawingPanel(DrawingFrame drawFrame){
-        frame = drawFrame;
+    /**
+     * Constructor: Sets up this drawing panel
+     *
+     * @param controlPanel the control panel
+     */
+    public DrawingPanel(ControlPanel controlPanel) {
+        this.controlPanel = controlPanel;
         color = Color.red;
-        this.setBackground(Color.white);
-        this.setLayout(null);
-        this.addMouseListener(new ActionHandler()); // listen to mouseClicked method
-        this.addMouseMotionListener(new ActionHandler()); // listen to mouseMoved method
+        drawLine = moveItem = inAction = false;
+        position = previousPoint = movingPoint = null;
+        itemInMove = hoveredItem = null;
+        setBackground(Color.white);
+        setLayout(null);
+        addMouseListener(new ActionHandler()); // listen to mouseClicked method
+        addMouseMotionListener(new ActionHandler()); // listen to mouseMoved method
     }
 
+    /**
+     * Draws all figure items of line, circle, square, and cross
+     * AND temporary line during while user haven't clicked the ending point
+     * AND highlighting bounding rectangle of the item that would be selected based on the current mouse position
+     *
+     * @param page the Graphics object
+     */
+    @Override
     public void paintComponent(Graphics page){
         super.paintComponent(page);
-
-        // disable Figure Action JComboBox while no available shape to be affected by actions
-        if (!shapes.isEmpty() && frame.figureAction.getItemCount()==1) {
-            frame.enableFigureActions(true);
-        }
-        if (shapes.isEmpty()) frame.enableFigureActions(false);
-
-        // the loop to draw all figure items in the list
-        for (Figure item : shapes){
-            if ( item!=null){
-                item.draw(page);
-            }
-        }
 
         // draw temporary line accordingly to mouse motion
         if (drawLine){
             page.setColor(color);
-            page.drawLine(position.x, position.y , movingX, movingY);
+            page.drawLine(position.x, position.y , movingPoint.x, movingPoint.y);
         }
 
-        // draw temporary moving figure item
-        if (moveItem ){
-            itemInMove.moveShape(movingX - position.x, movingY - position.y);
-        }
-
-        // draw an orange bounding rectangle of hovered Figure item
+        // Draw an orange bounding rectangle of hovered Figure item
+        // Larger bounding rectangle for Square item
         if (hoveredItem!=null){
-            hoveredItem.boundingHighlighter(page);
+            page.setColor(Color.orange);
+            if (hoveredItem instanceof Rect){
+                page.drawRect(hoveredItem.getX()-2, hoveredItem.getY()-2, hoveredItem.getWidth()+3, hoveredItem.getHeight()+3);
+            } else {
+                page.drawRect(hoveredItem.getX(), hoveredItem.getY(), hoveredItem.getWidth(), hoveredItem.getHeight());
+            }
         }
-
     }
 
-    public void setShapeColor(Color pickedColor){
+    /**
+     * Sets the color for drawing
+     *
+     * @param pickedColor the selected color
+     */
+    public void setColor(Color pickedColor) {
         color = pickedColor;
     }
 
-    public void terminateDrawingLineAndMove(){
+
+    /**
+     * @return the current selected color (use for testing)
+     */
+    public Color getColor() {
+        return color;
+    }
+
+    /**
+     * Stops drawing line and moving figure
+     */
+    public void terminateDrawingLineAndMoveAction(){
+        // during drawing line
         if (drawLine) drawLine = false;
-        if (moveItem){
+
+        // during moving item
+        if (moveItem) {
             moveItem = false;
-            itemInMove.terminateMove();
+            itemInMove.terminateMove(); // set the figure back to its original location before moving
         }
     }
 
+    /**
+     * Determines whether a component excepting Line contains a point
+     *
+     * @param component the component to be assessed
+     * @param point     the point to be assessed
+     * @return true if the component is not a Line and contains the point, otherwise false
+     */
+    public boolean isFoundFigureIgnoreLine(Component component, Point point) {
+        int theX = point.x - component.getX(); // the real X according to the component location
+        int theY = point.y - component.getY(); // the real Y according to the component location
+        return component.contains(theX, theY) && !(component instanceof Line);
+    }
+
+
+    /**
+     * Checks which figure excepting Line the current mouse position would perform the action on
+     *
+     * @param leastRecently true: find the LEAST current figure, false: find the MOST current figure
+     * @param point         the current mouse position
+     * @return the Figure object if found, otherwise return null
+     */
+    public Figure findFigureIgnoreLine(boolean leastRecently, Point point) {
+        Component[] components = this.getComponents();
+        if (leastRecently) { // assess the components in drawing panel from the beginning
+            for (int i = 0; i <= components.length - 1; i++) {
+                if (isFoundFigureIgnoreLine(components[i], point))
+                    return (Figure) components[i];
+            }
+        } else { // assess the components in drawing panel from the end
+            for (int i = components.length - 1; i >= 0; i--) {
+                if (isFoundFigureIgnoreLine(components[i], point))
+                    return (Figure) components[i];
+            }
+        }
+
+        return null; // return null if the point doesn't belong to any figure
+    }
+
+
+    /**
+     * Checks which figure (considering all types) the current mouse position would perform the action on
+     *
+     * @param point the current mouse position
+     * @return the Figure object if found, otherwise return null
+     */
+    public Figure findLeastRecentFigureConsiderLine(Point point) {
+        Component c = getComponentAt(point);
+        return (c == null || c == this) ? null : (Figure) c; // could return null or the container (this) if not found
+    }
+
+    /**
+     * Adds figure to drawing panel accordingly to selected type
+     */
+    public void addFigure() {
+        switch (controlPanel.getFigureMenus()[0].getSelectedIndex()) {
+            case 0 -> { // Circle
+                Figure circle = new Circle(position, defaultDimension, color);
+                add(circle);
+            }
+            case 1 -> { // Square
+                Figure square = new Rect(position, defaultDimension, color);
+                add(square);
+            }
+            case 2 -> { // Cross
+                Figure cross = new Cross(position, defaultDimension, color);
+                add(cross);
+            }
+            case 3 -> { // Line
+                if (!drawLine) { // first click action - haven't drawn line
+                    drawLine = true; // start drawing temp line
+                    previousPoint = position; // record the 1st point
+                } else { // second click action - is drawing line
+                    drawLine = false; // stop drawing temp line
+                    Figure line = new Line(previousPoint, color, position);
+                    add(line);
+                }
+            }
+        }
+    }
+
+    /**
+     * Performs action Delete/Enlarge/Shrink on the affected figure if found,
+     * other wise prints out not found message
+     */
+    public void performDeleteEnlargeShrink() {
+        int figureAction = controlPanel.getFigureMenus()[1].getSelectedIndex();
+        inAction = true; // perform the action until user successfully select an item
+
+        // find figure accordingly
+        Figure item = null;
+        switch (figureAction) {
+            case 1 -> item = findLeastRecentFigureConsiderLine(position); // Delete
+            case 2 -> item = findFigureIgnoreLine(true, position); // Enlarge
+            case 3 -> item = findFigureIgnoreLine(false, position); // Shrink
+        }
+
+        // once a figure is found
+        if (item != null) {
+            inAction = false; // stop the action
+            // perform action accordingly
+            switch (figureAction) {
+                case 1 -> remove(item); // Delete
+                case 2 -> item.enlarge(); // Enlarge
+                case 3 -> item.shrink(); // Shrink
+            }
+            hoveredItem = null; // refresh the affected figure
+            controlPanel.setFigureActionNone(); // reset action to None
+        } else { // notify if no figure is found
+            System.out.println("The point doesn't belong to any bounding rectangle");
+        }
+    }
+
+
+    /**
+     * Performs Move action by determining which stage the move mode is happening in
+     * 1st stage: Find figure and start moving if found, other wise prints out not found message
+     * 2nd stage: Selected item is moving around, then stops moving action
+     */
+    public void moveAction() {
+        // 1st Stage
+        if (!moveItem) {
+            inAction = true; // perform the action until user successfully select an item
+            // find figure
+            Figure item = findLeastRecentFigureConsiderLine(position);
+            // once a figure is found
+            if (item != null) {
+                inAction = false; // stop finding
+                moveItem = true; // start moving (used for mouse listener)
+                itemInMove = item; // assign found figure to the object would be moved in mouse listener
+                item.startMoving(); // record the original location in case of reversion
+            } else {
+                System.out.println("The point doesn't belong to any bounding rectangle");
+            }
+        }
+
+        // 2nd stage
+        else {
+            moveItem = false; // stop moving item
+        }
+    }
+
+    /**
+     * Represents the listeners for all mouse events
+     */
     private class ActionHandler extends MouseAdapter {
+
+        /**
+         * Responds to all the mouse presses on the drawing panel according to selected items of 2 figure menus
+         *
+         * @param e the MouseEvent to respond to
+         */
         @Override
         public void mousePressed(MouseEvent e) {
-            position = new Point(e.getX(),e.getY());
-            System.out.println("Mouse pressed at (" + e.getX()+","+e.getY()+")");
+            position = new Point(e.getX(), e.getY()); // record the current position for every mouse press
+            System.out.println("Mouse pressed at (" + e.getX() + "," + e.getY() + ")");
 
-            String figureAction = frame.getSelectedFigureAction();
-
-
-            // draw figure on click only in NONE action => draw figure
-            if (figureAction.equals("None")){
-                switch (frame.getSelectedFigureType()){
-                    case "Circle" -> {
-                        Figure circle = new Circle(position, defaultDimension, color);
-                        shapes.add(circle);
-                    }
-                    case "Square" -> {
-                        Figure square = new Rect(position,defaultDimension, color);
-                        shapes.add(square);
-                    }
-                    case "Cross" -> {
-                        Figure cross = new Cross(position,defaultDimension, color);
-                        shapes.add(cross);
-                    }
-                    case "Line" -> {
-                        if (!drawLine){ // first click action - haven't drawn line
-                            drawLine = true; // start drawing temp line
-                            previousPoint = position;
-                        }
-                        else { // second click action - is drawing line
-                            drawLine = false; // stop drawing temp line
-                            Line line = new Line(previousPoint, color, position);
-                            shapes.add(line); // add the most recent tempLine to shape list
-                        }
-                    }
+            // Perform action according to the selected item in the Figure Action ComboBox
+            int figureAction = controlPanel.getFigureMenus()[1].getSelectedIndex();
+            switch (figureAction) {
+                case 0 -> addFigure(); // None
+                case 1, 2, 3 -> performDeleteEnlargeShrink(); // Delete, Enlarge, Shrink
+                case 4 -> { // Move (separate with other actions because it requires 2 valid clicks to successfully perform the move action)
+                    moveAction();
+                    hoveredItem = null; // refresh the affected figure
+                    if (!moveItem && !inAction) controlPanel.setFigureActionNone(); // reset action to None
                 }
-            }
-
-            // Figure actions other than NONE and MOVE
-            if (!figureAction.equals("Move")){
-                switch (figureAction){
-                    case "Delete" -> deleteAction();
-                    case "Enlarge" -> enlargeAction();
-                    case "Shrink" -> shrinkAction();
-                }
-                hoveredItem = null;
-                if (!inAction) frame.setFigureActionNone();
-            }
-
-            // MOVE action: wait till the second click to set figure action to NONE
-            if (figureAction.equals("Move")){
-                moveAction();
-                hoveredItem = null;
-                if (!moveItem && !inAction) frame.setFigureActionNone();
             }
 
             repaint();
-        } // end mouseClick()
+        } // end mousePressed()
 
+        /**
+         * Responds to mouse move events on the drawing panel
+         * to determine the affected item when the cursor hovered on
+         * and relocate the figure during move action
+         *
+         * @param e the MouseEvent to respond to
+         */
         @Override
         public void mouseMoved(MouseEvent e) {
-            movingX = e.getX();
-            movingY = e.getY();
-            Point movingPoint = new Point(movingX, movingY);
+            movingPoint = new Point(e.getX(), e.getY()); // record the moving mouse position
             e.consume();
 
-            // find if the mouse is belong to any bounding rectangle
-            String figureAction = frame.getSelectedFigureAction();
-            if (!figureAction.equals("None") && !moveItem){
+            // 1. Determine which figure would be affected by the current the mouse position
+            // When user had selected action among Delete, Enlarge, Shrink, and Move, and hovers on the drawing panel
+            int figureAction = controlPanel.getFigureMenus()[1].getSelectedIndex();
+            if (figureAction != 0 && !moveItem) { // perform in the actions other than None, and not perform during a selected figure is moving
                 hoveredItem = null;
-                switch (figureAction){
-                    case "Delete", "Move" -> hoveredItem = checkItemList(true,false, movingPoint);
-                    case "Enlarge" -> hoveredItem = checkItemList(true, true, movingPoint);
-                    case "Shrink" ->  hoveredItem = checkItemList(false, true, movingPoint);
+                switch (figureAction) { // find the item according to types of actions
+                    case 1, 4 -> hoveredItem = findLeastRecentFigureConsiderLine(movingPoint);// Delete and Move
+                    case 2 -> hoveredItem = findFigureIgnoreLine(true, movingPoint); // Enlarge
+                    case 3 -> hoveredItem = findFigureIgnoreLine(false, movingPoint);// Shrink
                 }
-                if (hoveredItem!=null) {
-                    frame.setCurrentAction(hoveredItem); // set text to the figure type of hovered item
+
+                // when a figure is found, set text of Current Action label to the figure type of hovered item
+                if (hoveredItem != null) {
+                    controlPanel.setCurrentAction(hoveredItem);
                 } else {
-                    frame.setCurrentAction(); // set text to the current selected item of Figure Type JComboBox
+                    controlPanel.setCurrentAction();// set text to the current selected figure of Figure Type JComboBox
                 }
+            }
+
+            // 2. Move selected figure according to the moving mouse
+            if (moveItem){
+                itemInMove.moveShape(movingPoint.x - position.x, movingPoint.y - position.y);
             }
 
             repaint();
@@ -158,96 +310,5 @@ public class DrawingPanel extends JPanel implements Constants {
         } // end mouseMoved()
 
 
-        public void deleteAction(){
-            inAction = true; // perform the action until user successfully select an item
-            // assess items from the beginning of the list and delete only 1 shape
-            Figure item = checkItemList(true,false,position);
-            if (item != null){
-                inAction = false;
-                shapes.remove(item);
-            } else {
-                System.out.println("The point doesn't belong to any bounding rectangle");
-            }
-        }
-
-        public void enlargeAction(){
-            inAction = true; // perform the action until user successfully select an item
-            // assess items from the beginning of the list and enlarge only 1 shape
-            Figure item = checkItemList(true,true,position);
-            if (item!=null){
-                inAction = false;
-                item.enlarge();
-            } else {
-                System.out.println("The point doesn't belong to any bounding rectangle");
-            }
-        }
-
-
-        public void shrinkAction(){
-            inAction = true;
-            // assess items from the end of the list and shrink only 1 shape
-            Figure item = checkItemList(false,true,position);
-            if (item!= null){
-                inAction = false;
-                item.shrink();
-            } else {
-                System.out.println("The point doesn't belong to any bounding rectangle");
-            }
-        }
-
-        public void moveAction(){
-            // 1. first click of Move mode
-            if (!moveItem){
-                inAction = true;
-                // assess items from the beginning of the list and delete only 1 shape
-                Figure item = checkItemList(true,false,position);
-                if (item!=null){
-                    inAction = false;
-                    moveItem = true;
-                    itemInMove = item;
-                    item.startMoving();
-                } else {
-                    System.out.println("The point doesn't belong to any bounding rectangle");
-                }
-            }
-
-            // 2. second click of Move mode
-            else {
-              moveItem = false; // stop moving item
-            }
-        } // end moveAction()
-
-        public Figure checkItemList(boolean fromBeginning, boolean ignoreLine,Point thePoint){
-            Figure affectedFigure = null;
-            boolean pointInItem = false;
-            // find the least recently added item: Enlarge +  Delete + Move
-            if (fromBeginning){
-                for (int i = 0; i<=shapes.size()-1 && !pointInItem; i++) {
-                    Figure figure = shapes.get(i); // each item in the list of figures
-                    if (figure.containPoint(thePoint)) {
-                        if (!ignoreLine || !(figure instanceof Line)){
-                            affectedFigure =  figure;
-                            pointInItem = true;
-                        }
-                    }
-                }
-            }
-
-            // find the most recently added item: Shrink
-            if (!fromBeginning){
-                for (int i = shapes.size()-1; i>=0 && !pointInItem; i--) {
-                    Figure figure = shapes.get(i);
-                    if (figure.containPoint(thePoint)) {
-                        if (!ignoreLine || !(figure instanceof Line)) {
-                            affectedFigure = figure;
-                            pointInItem = true;
-                        }
-                    }
-                }
-            }
-            return affectedFigure;
-        }
-
     }// end ActionHandler
-
 }
