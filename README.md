@@ -1,1 +1,1 @@
-Repository of learning projects in IT degree
+Academic projects in Master of Information Technology degree
