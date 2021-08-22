@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="author" content="Vy Vu(vu0081)">
+  <meta name="description" content="Practical 2">
+  <title>Practical 2</title>
+  <link rel="stylesheet" href="styles/style.css">
+</head>
+
+<body>
+  <div id="content">
+    <h1><b>Welcome to the WebDev quiz.</b></h1>
+    <form action="quiz.html" method="GET">
+      <div>
+        <div>
+          <label>What is your name?</label><br>
+          <input class="fillin" type="text" name="name" placeholder="Required" minlength="2" required />
+        </div>
+
+        <div>
+          <label>How old are you?</label><br>
+          <input class="fillin" type="number" name="age" min="10" max="100" />
+        </div>
+
+        <div>
+          <label>What is your email address?</label><br>
+          <input class="fillin" type="email" name="email" />
+        </div>
+
+      </div>
+      <input type="submit" value="Begin" />
+    </form>
+  </div>
+</body>
+
+</html>
